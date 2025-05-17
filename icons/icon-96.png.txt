@@ -1,0 +1,9 @@
+# This is a placeholder file for icon-96.png
+
+To generate the actual PNG, please run the convert_icons.sh script
+or manually convert the SVG file to PNG using rsvg-convert or another SVG converter.
+
+For reference, this icon is:
+- 96x96 pixels
+- Blue background with white eye symbol
+- Used for the extension's inactive state (animations off) 

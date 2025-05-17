@@ -1,0 +1,92 @@
+.sat-answer-hidden {
+  display: none !important;
+}
+
+.sat-answer-visible {
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sat-button-container {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 100;
+  display: flex;
+  gap: 10px;
+}
+
+/* Prevent scrolling/focus issues */
+.answer-content {
+  scroll-margin: 0 !important;
+  scroll-snap-align: none !important;
+  scroll-snap-stop: normal !important;
+  -webkit-overflow-scrolling: auto !important;
+  overflow-anchor: none !important;
+  scroll-behavior: auto !important;
+}
+
+.answer-content:focus,
+.answer-content:active {
+  outline: none !important;
+}
+
+/* Primary button (blue) style */
+.sat-toggle-btn-primary {
+  padding: 10px 16px;
+  background-color: #304FFE;
+  color: white;
+  border: none;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  min-width: 95px;
+  text-align: center;
+  box-shadow: none;
+  transition: background-color 0.3s ease;
+  outline: none;
+}
+
+.sat-toggle-btn-primary:hover {
+  background-color: #1e3cdf;
+}
+
+.sat-toggle-btn-primary:active {
+  background-color: #0026ca;
+}
+
+/* Secondary button (white) style */
+.sat-toggle-btn-secondary {
+  padding: 10px 16px;
+  background-color: white;
+  color: #304FFE;
+  border: 1px solid #304FFE;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  min-width: 95px;
+  text-align: center;
+  box-shadow: none;
+  transition: background-color 0.3s ease;
+  outline: none;
+}
+
+.sat-toggle-btn-secondary:hover {
+  background-color: #f5f8ff;
+}
+
+.sat-toggle-btn-secondary:active {
+  background-color: #e6ecff;
+} 

@@ -1,0 +1,13 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="24" cy="24" r="24" fill="#304FFE"/>
+  
+  <!-- Eye symbol (white) -->
+  <path d="M24 14C16 14 9.27273 19.6364 6 24C9.27273 28.3636 16 34 24 34C32 34 38.7273 28.3636 42 24C38.7273 19.6364 32 14 24 14Z" fill="white"/>
+  
+  <!-- Eye pupil (blue) -->
+  <circle cx="24" cy="24" r="6" fill="#304FFE"/>
+  
+  <!-- Slash for "hide answer" -->
+  <path d="M10 38L38 10" stroke="white" stroke-width="4" stroke-linecap="round"/>
+</svg> 

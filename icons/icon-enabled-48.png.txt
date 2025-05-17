@@ -1,0 +1,9 @@
+# This is a placeholder file for icon-enabled-48.png
+
+To generate the actual PNG, please run the convert_icons.sh script
+or manually convert the SVG file to PNG using rsvg-convert or another SVG converter.
+
+For reference, this icon is:
+- 48x48 pixels
+- Green background with white eye symbol
+- Used for the extension's active state (animations on) 

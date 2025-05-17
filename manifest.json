@@ -1,0 +1,31 @@
+{
+  "manifest_version": 2,
+  "name": "SAT Question Bank Answer Hider",
+  "version": "1.3.1",
+  "description": "Hides answers and explanations on SAT Question Bank website until you're ready to see them",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    },
+    "default_title": "SAT Question Bank Answer Hider (Animation: OFF)"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://satsuitequestionbank.collegeboard.org/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ]
+} 
