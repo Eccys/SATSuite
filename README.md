@@ -2,7 +2,7 @@
 
 A browser extension that hides answers and explanations on the SAT Question Bank website (https://satsuitequestionbank.collegeboard.org) until you're ready to see them.
 
-![Extension Preview](https://raw.githubusercontent.com/username/SATSuite/main/screenshots/preview.png)
+![Extension Preview](https://raw.githubusercontent.com/Eccys/SATSuite/main/screenshots/preview.png)
 
 ## Features
 
