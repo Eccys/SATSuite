@@ -61,8 +61,19 @@ if (document.readyState === 'loading') {
 } else {
   initializeExtension();
 }
+function resetAndHideAllAnswers() {
+  answerVisible = false;
+  const answerElements = document.querySelectorAll('.answer-content');
+  answerElements.forEach((answerContent) => {
+    hideAnswer(answerContent);
+  });
+}
+
 // Run when navigating between questions via history API
-window.addEventListener('popstate', initializeExtension);
+window.addEventListener('popstate', () => {
+  resetAndHideAllAnswers();
+  initializeExtension();
+});
 
 function initializeExtension() {
   // Set up URL change detection
@@ -87,13 +98,14 @@ function setupUrlChangeDetection() {
       lastUrl = location.href;
       console.log('URL changed to:', lastUrl);
       
-      // Reset answer visibility state
-      answerVisible = false;
+      // Reset answer visibility state and re-hide any reused answer elements immediately
+      resetAndHideAllAnswers();
       
       // If we're on a question page
       if (lastUrl.includes('/digital/results') || lastUrl.includes('questionbank.collegeboard')) {
         // Small delay to ensure DOM is updated
         setTimeout(() => {
+          resetAndHideAllAnswers();
           initializeHider();
         }, 500);
       }
@@ -116,12 +128,8 @@ function processAnswerElements() {
       answerContent.classList.add('sat-answer-processed');
       addToggleButtons(answerContent);
       
-      // Set initial visibility state based on global state
-      if (answerVisible) {
-        showAnswer(answerContent);
-      } else {
-        hideAnswer(answerContent);
-      }
+      // Newly discovered answer blocks always start hidden until the user clicks "Show Answer"
+      hideAnswer(answerContent);
       
       // Prevent scroll behavior on click
       preventScrollOnClick(answerContent);
@@ -207,7 +215,9 @@ function addToggleButtons(answerContent) {
   
   // Create the show button (primary/blue style)
   const showButton = document.createElement('button');
-  showButton.id = 'sat-show-answer-btn';
+  if (!document.getElementById('sat-show-answer-btn')) {
+    showButton.id = 'sat-show-answer-btn';
+  }
   showButton.type = 'button';
   showButton.textContent = 'Show Answer';
   showButton.className = 'sat-toggle-btn-primary';
@@ -215,7 +225,9 @@ function addToggleButtons(answerContent) {
   
   // Create the hide button (secondary/white style)
   const hideButton = document.createElement('button');
-  hideButton.id = 'sat-hide-answer-btn';
+  if (!document.getElementById('sat-hide-answer-btn')) {
+    hideButton.id = 'sat-hide-answer-btn';
+  }
   hideButton.type = 'button';
   hideButton.textContent = 'Hide Answer';
   hideButton.className = 'sat-toggle-btn-secondary';
