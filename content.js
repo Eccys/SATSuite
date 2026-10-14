@@ -1,30 +1,68 @@
+// Cross-browser extension API reference (supports Firefox `browser` and Chromium `chrome`)
+const ext = typeof browser !== 'undefined' ? browser : (typeof chrome !== 'undefined' ? chrome : null);
+
 // Global variables
 let globalObserver = null;
 let urlChangeObserver = null;
 let answerVisible = false;
 let animationEnabled = false;
 
+function getStorageValue(key, callback) {
+  if (!ext || !ext.storage || !ext.storage.local) {
+    callback({});
+    return;
+  }
+  try {
+    // Use 1-arg call if Promise-based (Firefox `browser.storage`), or callback for `chrome.storage`
+    if (typeof browser !== 'undefined' && browser.storage && browser.storage.local) {
+      const maybePromise = browser.storage.local.get(key);
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        maybePromise.then((result) => callback(result || {})).catch(() => callback({}));
+        return;
+      }
+    }
+    ext.storage.local.get(key, (result) => {
+      callback(result || {});
+    });
+  } catch (e) {
+    callback({});
+  }
+}
+
 // Check animation preference on load
-browser.storage.local.get('animationEnabled', (result) => {
-  animationEnabled = result.animationEnabled || false;
+getStorageValue('animationEnabled', (result) => {
+  animationEnabled = Boolean(result.animationEnabled);
   console.log('Animation enabled:', animationEnabled);
 });
 
 // Listen for messages from the background script
-browser.runtime.onMessage.addListener((message) => {
-  if (message.action === 'toggleAnimation') {
-    animationEnabled = message.animationEnabled;
-    console.log('Animation setting updated:', animationEnabled);
-  }
-  return true;
-});
+if (ext && ext.runtime && ext.runtime.onMessage) {
+  ext.runtime.onMessage.addListener((message) => {
+    if (message && message.action === 'toggleAnimation') {
+      animationEnabled = Boolean(message.animationEnabled);
+      console.log('Animation setting updated:', animationEnabled);
+    }
+    return false;
+  });
+}
+
+// Also keep animationEnabled in sync if storage changes directly
+if (ext && ext.storage && ext.storage.onChanged) {
+  ext.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.animationEnabled) {
+      animationEnabled = Boolean(changes.animationEnabled.newValue);
+    }
+  });
+}
 
 // Wait for the page to fully load
-document.addEventListener('DOMContentLoaded', initializeExtension);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeExtension);
+} else {
+  initializeExtension();
+}
 // Run when navigating between questions via history API
 window.addEventListener('popstate', initializeExtension);
-// Run immediately in case the DOM is already loaded
-initializeExtension();
 
 function initializeExtension() {
   // Set up URL change detection
@@ -63,22 +101,17 @@ function setupUrlChangeDetection() {
   });
   
   // Start observing
-  urlChangeObserver.observe(document, {
+  const observeTarget = document.documentElement || document;
+  urlChangeObserver.observe(observeTarget, {
     subtree: true,
     childList: true
   });
 }
 
-function initializeHider() {
-  // Clear any existing observers
-  if (globalObserver) {
-    globalObserver.disconnect();
-  }
-  
-  // Setup the observer to watch for dynamic content
-  globalObserver = new MutationObserver((mutations) => {
-    const answerContent = document.querySelector('.answer-content');
-    if (answerContent && !answerContent.classList.contains('sat-answer-processed')) {
+function processAnswerElements() {
+  const answerElements = document.querySelectorAll('.answer-content');
+  answerElements.forEach((answerContent) => {
+    if (!answerContent.classList.contains('sat-answer-processed')) {
       console.log('Answer content found, processing...');
       answerContent.classList.add('sat-answer-processed');
       addToggleButtons(answerContent);
@@ -94,31 +127,31 @@ function initializeHider() {
       preventScrollOnClick(answerContent);
     }
   });
+}
 
-  // Start observing - keep observing for the entire session
-  globalObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true
+function initializeHider() {
+  // Clear any existing observers
+  if (globalObserver) {
+    globalObserver.disconnect();
+  }
+  
+  // Setup the observer to watch for dynamic content
+  globalObserver = new MutationObserver(() => {
+    processAnswerElements();
   });
+
+  const targetNode = document.body || document.documentElement;
+  if (targetNode) {
+    // Start observing - keep observing for the entire session
+    globalObserver.observe(targetNode, {
+      childList: true,
+      subtree: true,
+      attributes: true
+    });
+  }
   
   // Also check if the answer content is already there
-  const answerContent = document.querySelector('.answer-content');
-  if (answerContent && !answerContent.classList.contains('sat-answer-processed')) {
-    console.log('Answer content already present, processing...');
-    answerContent.classList.add('sat-answer-processed');
-    addToggleButtons(answerContent);
-    
-    // Set initial visibility state based on global state
-    if (answerVisible) {
-      showAnswer(answerContent);
-    } else {
-      hideAnswer(answerContent);
-    }
-    
-    // Prevent scroll behavior on click
-    preventScrollOnClick(answerContent);
-  }
+  processAnswerElements();
 }
 
 // Function to prevent scroll behavior when clicking on the answer container
@@ -159,13 +192,14 @@ function preventScrollOnClick(element) {
 }
 
 function addToggleButtons(answerContent) {
-  // Remove any existing buttons
-  const existingContainer = document.querySelector('.sat-button-container');
-  if (existingContainer) {
-    existingContainer.remove();
-  }
-
   if (!answerContent) return;
+
+  const parentElement = answerContent.parentElement;
+  if (!parentElement) return;
+
+  // Remove any existing buttons in this parent container
+  const existingContainers = parentElement.querySelectorAll('.sat-button-container');
+  existingContainers.forEach((el) => el.remove());
 
   // Create the container for buttons
   const container = document.createElement('div');
@@ -174,6 +208,7 @@ function addToggleButtons(answerContent) {
   // Create the show button (primary/blue style)
   const showButton = document.createElement('button');
   showButton.id = 'sat-show-answer-btn';
+  showButton.type = 'button';
   showButton.textContent = 'Show Answer';
   showButton.className = 'sat-toggle-btn-primary';
   showButton.setAttribute('data-action', 'show');
@@ -181,6 +216,7 @@ function addToggleButtons(answerContent) {
   // Create the hide button (secondary/white style)
   const hideButton = document.createElement('button');
   hideButton.id = 'sat-hide-answer-btn';
+  hideButton.type = 'button';
   hideButton.textContent = 'Hide Answer';
   hideButton.className = 'sat-toggle-btn-secondary';
   hideButton.setAttribute('data-action', 'hide');
@@ -202,15 +238,19 @@ function addToggleButtons(answerContent) {
   container.appendChild(hideButton);
   
   // Make sure the parent has position relative for proper button positioning
-  const parentElement = answerContent.parentElement;
-  if (parentElement) {
-    if (window.getComputedStyle(parentElement).position === 'static') {
-      parentElement.style.position = 'relative';
-    }
+  if (window.getComputedStyle(parentElement).position === 'static') {
+    parentElement.style.position = 'relative';
   }
   
   // Add the button container to the parent element of the answer content
   parentElement.appendChild(container);
+}
+
+function getButtonsForAnswer(answerContent) {
+  const parent = answerContent && answerContent.parentElement;
+  const showButton = (parent && parent.querySelector('[data-action="show"]')) || document.getElementById('sat-show-answer-btn');
+  const hideButton = (parent && parent.querySelector('[data-action="hide"]')) || document.getElementById('sat-hide-answer-btn');
+  return { showButton, hideButton };
 }
 
 function showAnswer(answerContent) {
@@ -224,11 +264,12 @@ function showAnswer(answerContent) {
     // Only add animation class if animation is enabled
     if (animationEnabled) {
       answerContent.classList.add('sat-answer-visible');
+    } else {
+      answerContent.classList.remove('sat-answer-visible');
     }
     
     // Toggle button visibility
-    const showButton = document.getElementById('sat-show-answer-btn');
-    const hideButton = document.getElementById('sat-hide-answer-btn');
+    const { showButton, hideButton } = getButtonsForAnswer(answerContent);
     
     if (showButton) showButton.style.display = 'none';
     if (hideButton) hideButton.style.display = 'block';
@@ -240,17 +281,14 @@ function hideAnswer(answerContent) {
     // Update global state
     answerVisible = false;
     
-    // Update DOM
-    if (animationEnabled) {
-      answerContent.classList.remove('sat-answer-visible');
-    }
+    // Always remove visible animation class when hiding
+    answerContent.classList.remove('sat-answer-visible');
     answerContent.classList.add('sat-answer-hidden');
     
     // Toggle button visibility
-    const showButton = document.getElementById('sat-show-answer-btn');
-    const hideButton = document.getElementById('sat-hide-answer-btn');
+    const { showButton, hideButton } = getButtonsForAnswer(answerContent);
     
     if (showButton) showButton.style.display = 'block';
     if (hideButton) hideButton.style.display = 'none';
   }
-} 
+}
