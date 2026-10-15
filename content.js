@@ -4,8 +4,24 @@ const ext = typeof browser !== 'undefined' ? browser : (typeof chrome !== 'undef
 // Global variables
 let globalObserver = null;
 let urlChangeObserver = null;
+let urlChangeTimer = null;
 let answerVisible = false;
 let animationEnabled = false;
+const answerButtonMap = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+function syncVisibleAnswersAnimationClass() {
+  if (typeof document === 'undefined' || !document.querySelectorAll) return;
+  const answerElements = document.querySelectorAll('.answer-content');
+  answerElements.forEach((el) => {
+    if (!el.classList.contains('sat-answer-hidden')) {
+      if (animationEnabled) {
+        el.classList.add('sat-answer-visible');
+      } else {
+        el.classList.remove('sat-answer-visible');
+      }
+    }
+  });
+}
 
 function getStorageValue(key, callback) {
   if (!ext || !ext.storage || !ext.storage.local) {
@@ -32,6 +48,7 @@ function getStorageValue(key, callback) {
 // Check animation preference on load
 getStorageValue('animationEnabled', (result) => {
   animationEnabled = Boolean(result.animationEnabled);
+  syncVisibleAnswersAnimationClass();
   console.log('Animation enabled:', animationEnabled);
 });
 
@@ -40,6 +57,7 @@ if (ext && ext.runtime && ext.runtime.onMessage) {
   ext.runtime.onMessage.addListener((message) => {
     if (message && message.action === 'toggleAnimation') {
       animationEnabled = Boolean(message.animationEnabled);
+      syncVisibleAnswersAnimationClass();
       console.log('Animation setting updated:', animationEnabled);
     }
     return false;
@@ -51,6 +69,7 @@ if (ext && ext.storage && ext.storage.onChanged) {
   ext.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.animationEnabled) {
       animationEnabled = Boolean(changes.animationEnabled.newValue);
+      syncVisibleAnswersAnimationClass();
     }
   });
 }
@@ -101,11 +120,16 @@ function setupUrlChangeDetection() {
       // Reset answer visibility state and re-hide any reused answer elements immediately
       resetAndHideAllAnswers();
       
+      if (urlChangeTimer) {
+        clearTimeout(urlChangeTimer);
+        urlChangeTimer = null;
+      }
+
       // If we're on a question page
       if (lastUrl.includes('/digital/results') || lastUrl.includes('questionbank.collegeboard')) {
-        // Small delay to ensure DOM is updated
-        setTimeout(() => {
-          resetAndHideAllAnswers();
+        // Small delay to ensure any newly mounted DOM nodes are processed without re-hiding answers the user already opened
+        urlChangeTimer = setTimeout(() => {
+          urlChangeTimer = null;
           initializeHider();
         }, 500);
       }
@@ -173,7 +197,7 @@ function preventScrollOnClick(element) {
     element.addEventListener('click', function(e) {
       e.preventDefault();
       // Only stop propagation if not clicking a button
-      if (!e.target.closest('button')) {
+      if (!e.target || typeof e.target.closest !== 'function' || !e.target.closest('button')) {
         e.stopPropagation();
       }
       return false;
@@ -205,9 +229,14 @@ function addToggleButtons(answerContent) {
   const parentElement = answerContent.parentElement;
   if (!parentElement) return;
 
-  // Remove any existing buttons in this parent container
-  const existingContainers = parentElement.querySelectorAll('.sat-button-container');
-  existingContainers.forEach((el) => el.remove());
+  // Remove any existing button container previously created for this specific answerContent
+  const previousEntry = answerButtonMap ? answerButtonMap.get(answerContent) : null;
+  if (previousEntry && previousEntry.container && typeof previousEntry.container.remove === 'function') {
+    previousEntry.container.remove();
+  } else if (parentElement.querySelectorAll('.answer-content').length <= 1) {
+    const existingContainers = parentElement.querySelectorAll('.sat-button-container');
+    existingContainers.forEach((el) => el.remove());
+  }
 
   // Create the container for buttons
   const container = document.createElement('div');
@@ -256,12 +285,21 @@ function addToggleButtons(answerContent) {
   
   // Add the button container to the parent element of the answer content
   parentElement.appendChild(container);
+  if (answerButtonMap) {
+    answerButtonMap.set(answerContent, { container, showButton, hideButton });
+  }
 }
 
 function getButtonsForAnswer(answerContent) {
+  if (answerButtonMap && answerContent) {
+    const mapped = answerButtonMap.get(answerContent);
+    if (mapped) {
+      return { showButton: mapped.showButton, hideButton: mapped.hideButton };
+    }
+  }
   const parent = answerContent && answerContent.parentElement;
-  const showButton = (parent && parent.querySelector('[data-action="show"]')) || document.getElementById('sat-show-answer-btn');
-  const hideButton = (parent && parent.querySelector('[data-action="hide"]')) || document.getElementById('sat-hide-answer-btn');
+  const showButton = parent ? parent.querySelector('[data-action="show"]') : null;
+  const hideButton = parent ? parent.querySelector('[data-action="hide"]') : null;
   return { showButton, hideButton };
 }
 
