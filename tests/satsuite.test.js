@@ -248,4 +248,11 @@ describe('SATSuite background script (background.js)', () => {
     assert.equal(sentMessages.length, 1);
     assert.equal(sentMessages[0].msg.animationEnabled, false);
   });
+
+  it('keeps manifest.json and manifest.v3.json version and content_scripts synchronized', () => {
+    const m2 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8'));
+    const m3 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.v3.json'), 'utf8'));
+    assert.equal(m2.version, m3.version);
+    assert.deepEqual(m2.content_scripts[0].matches, m3.content_scripts[0].matches);
+  });
 });
